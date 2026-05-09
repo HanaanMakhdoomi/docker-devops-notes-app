@@ -3,7 +3,7 @@ from flask_cors import CORS
 import psycopg2
 import os
 import time
-
+import threading
 app = Flask(__name__)
 CORS(app)
 
@@ -120,6 +120,6 @@ def delete_note(note_id):
     return jsonify({"message": "Note deleted"})
 
 if __name__ == "__main__":
-    init_db()
+    threading.Thread(target=init_db).start()
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
