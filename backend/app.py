@@ -10,16 +10,21 @@ CORS(app)
 def get_db_connection():
     while True:
         try:
+            database_url = os.getenv("postgresql://notes_db_jk4u_user:vm0eoReOmJTvIgX2S7VKQJ9qdh6eURCf@dpg-d7voinjbc2fs73d204gg-a/notes_db_jk4u")
+
+            if database_url:
+                return psycopg2.connect(database_url)
+
             return psycopg2.connect(
                 host=os.getenv("DB_HOST", "db"),
                 database=os.getenv("DB_NAME", "notesdb"),
                 user=os.getenv("DB_USER", "admin"),
                 password=os.getenv("DB_PASSWORD", "password")
             )
+
         except psycopg2.OperationalError:
             print("Database not ready, retrying in 2 seconds...")
             time.sleep(2)
-
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
