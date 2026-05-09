@@ -10,7 +10,7 @@ CORS(app)
 def get_db_connection():
     while True:
         try:
-            database_url = os.getenv("postgresql://notes_db_jk4u_user:vm0eoReOmJTvIgX2S7VKQJ9qdh6eURCf@dpg-d7voinjbc2fs73d204gg-a/notes_db_jk4u")
+            database_url = os.getenv("DATABASE_URL")
 
             if database_url:
                 return psycopg2.connect(database_url)
