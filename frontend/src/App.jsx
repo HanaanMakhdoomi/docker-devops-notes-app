@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const API_URL = "http://localhost/api";
+const API_URL = "https://docker-devops-notes-app.onrender.com";
 
 const formatTime = (iso) => {
   const d = new Date(iso);
