@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import "./App.css";
 
 const API_URL = "https://docker-devops-notes-app.onrender.com";
-
 const formatTime = (iso) => {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -12,6 +11,14 @@ export default function App() {
   const [notes, setNotes] = useState([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+
+  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [username, setUsername] = useState(localStorage.getItem("username"));
+  const [authMode, setAuthMode] = useState("login");
+  const [authUsername, setAuthUsername] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+
   const [selectedNote, setSelectedNote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -20,9 +27,60 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(false);
 
+  const authHeaders = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+
+  const handleAuth = async () => {
+    setAuthError("");
+
+    const endpoint = authMode === "login" ? "/login" : "/signup";
+
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: authUsername,
+        password: authPassword,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setAuthError(data.error || "Something went wrong");
+      return;
+    }
+
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("username", data.username);
+
+    setToken(data.token);
+    setUsername(data.username);
+    setAuthUsername("");
+    setAuthPassword("");
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    setToken(null);
+    setUsername(null);
+    setNotes([]);
+    setSelectedNote(null);
+  };
+
   const fetchNotes = async () => {
+    if (!token) return;
+
     try {
-      const response = await fetch(`${API_URL}/notes`);
+      const response = await fetch(`${API_URL}/notes`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
       const data = await response.json();
       setNotes(data);
     } catch (e) {
@@ -40,7 +98,7 @@ export default function App() {
     try {
       await fetch(`${API_URL}/notes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({
           title: title.trim() || "Untitled",
           content: content.trim(),
@@ -59,7 +117,13 @@ export default function App() {
     setDeletingId(id);
 
     try {
-      await fetch(`${API_URL}/notes/${id}`, { method: "DELETE" });
+      await fetch(`${API_URL}/notes/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
       await fetchNotes();
 
       if (selectedNote?.id === id) {
@@ -71,8 +135,10 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchNotes();
-  }, []);
+    if (token) {
+      fetchNotes();
+    }
+  }, [token]);
 
   const filtered = notes.filter((n) => {
     const q = search.toLowerCase();
@@ -87,6 +153,63 @@ export default function App() {
     setSidebarOpen(false);
   };
 
+  if (!token) {
+    return (
+      <div className={`app-shell${dark ? " dark" : ""}`}>
+        <div className="app-inner">
+          <header className="header">
+            <p className="header-eyebrow">● Docker Notes</p>
+            <h1 className="header-title">
+              Welcome. <span>Login.</span>
+            </h1>
+            <p className="header-sub">// your private notes workspace</p>
+          </header>
+
+          <div className="compose-box">
+            <h2 className="note-title">
+              {authMode === "login" ? "Login" : "Create account"}
+            </h2>
+
+            <input
+              className="compose-title-input"
+              placeholder="Username"
+              value={authUsername}
+              onChange={(e) => setAuthUsername(e.target.value)}
+            />
+
+            <input
+              className="compose-title-input"
+              placeholder="Password"
+              type="password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+            />
+
+            {authError && <p className="auth-error">{authError}</p>}
+
+            <button className="add-btn" onClick={handleAuth}>
+              {authMode === "login" ? "Login" : "Sign up"}
+            </button>
+
+            <p className="auth-switch">
+              {authMode === "login"
+                ? "Don't have an account?"
+                : "Already have an account?"}{" "}
+              <button
+                className="link-btn"
+                onClick={() =>
+                  setAuthMode(authMode === "login" ? "signup" : "login")
+                }
+              >
+                {authMode === "login" ? "Sign up" : "Login"}
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`app-shell${dark ? " dark" : ""}`}>
       <div
@@ -97,10 +220,7 @@ export default function App() {
       <aside className={`sidebar${sidebarOpen ? " open" : ""}`}>
         <div className="sidebar-header">
           <span className="sidebar-heading">● All Notes</span>
-          <button
-            className="sidebar-close"
-            onClick={() => setSidebarOpen(false)}
-          >
+          <button className="sidebar-close" onClick={() => setSidebarOpen(false)}>
             ✕
           </button>
         </div>
@@ -115,9 +235,7 @@ export default function App() {
                 className="sidebar-item"
                 onClick={() => openNote(note)}
               >
-                <p className="sidebar-item-title">
-                  {note.title || "Untitled"}
-                </p>
+                <p className="sidebar-item-title">{note.title || "Untitled"}</p>
                 <p className="sidebar-item-preview">{note.content}</p>
               </div>
             ))
@@ -141,13 +259,14 @@ export default function App() {
             <span />
           </button>
 
-          <span className="topbar-label">DevOps Workspace</span>
+          <span className="topbar-label">Logged in as {username}</span>
 
           <div className="topbar-right">
-            <label
-              className="theme-toggle"
-              title={dark ? "Switch to light mode" : "Switch to dark mode"}
-            >
+            <button className="delete-btn" onClick={logout}>
+              Logout
+            </button>
+
+            <label className="theme-toggle">
               <span className="theme-toggle-icon">{dark ? "🌙" : "☀️"}</span>
               <div className="toggle-track" onClick={() => setDark(!dark)}>
                 <div className="toggle-knob" />
@@ -161,7 +280,7 @@ export default function App() {
           <h1 className="header-title">
             Capture. <span>Ship.</span>
           </h1>
-          <p className="header-sub">// thoughts that keep the pipeline moving</p>
+          <p className="header-sub">// private notes linked to your account</p>
         </header>
 
         {selectedNote ? (
@@ -214,35 +333,16 @@ export default function App() {
                 value={content}
                 rows={3}
                 onChange={(e) => setContent(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                    addNote();
-                  }
-                }}
               />
 
               <div className="compose-footer">
-                <span className="char-count">
-                  {content.length} chars · Ctrl+Enter to save
-                </span>
+                <span className="char-count">{content.length} chars</span>
 
                 <button
                   className="add-btn"
                   onClick={addNote}
                   disabled={adding || !content.trim()}
                 >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 14 14"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  >
-                    <line x1="7" y1="1" x2="7" y2="13" />
-                    <line x1="1" y1="7" x2="13" y2="7" />
-                  </svg>
                   {adding ? "Saving…" : "Add note"}
                 </button>
               </div>
@@ -279,7 +379,6 @@ export default function App() {
                   <div
                     className="note-card"
                     key={note.id}
-                    id={`note-${note.id}`}
                     onClick={() => openNote(note)}
                   >
                     <span className="note-index">
@@ -304,7 +403,6 @@ export default function App() {
                         deleteNote(note.id);
                       }}
                       disabled={deletingId === note.id}
-                      title="Delete note"
                     >
                       {deletingId === note.id ? "…" : "✕"}
                     </button>

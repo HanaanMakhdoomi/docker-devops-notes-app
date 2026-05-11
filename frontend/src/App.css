@@ -603,3 +603,26 @@ body {
   border-top: 1px solid var(--border-sidebar);
   flex-shrink: 0;
 }
+
+.auth-error {
+  color: var(--danger);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.auth-switch {
+  margin-top: 18px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.link-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+}
